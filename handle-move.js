@@ -1,4 +1,4 @@
-const parseBoard = board => {
+const parseBoard = (board, { id }) => {
     let parsedBoard = [];
 
     for (let y = 0; y < board.height; y++) {
@@ -9,22 +9,26 @@ const parseBoard = board => {
     }
         
     board.snakes.forEach(snake => {
-        snake.body.forEach(coord => {
-            parsedBoard[coord.y][coord.x] = -150;
+        snake.body.forEach((coord, i) => {
+            if (snake.id === id && i === 0) {
+                parsedBoard[coord.y][coord.x] = 0;
+            } else {
+                parsedBoard[coord.y][coord.x] = -150;
+            }
         });
     });
 
     board.food.forEach(food => {
-        parsedBoard[food.y][food.x] = 100;
+        parsedBoard[food.y][food.x] = 200;
     });
 
-    console.log(parsedBoard);
+    // console.log(parsedBoard);
     return parsedBoard;
 };
 
 const checkCell = (parsedBoard, { food, snakes }, x, y) => {
     const distanceToFood = () => {
-        let minDist = 100;
+        let minDist = 15;
         food.forEach(f => {
             const dist = Math.abs(x -f.x) + Math.abs(y - f.y);
             if (dist < minDist) {
@@ -35,38 +39,51 @@ const checkCell = (parsedBoard, { food, snakes }, x, y) => {
         return minDist;
     };
 
-    let value = 0;
+    const distanceToSnake = () => {
+        let minDist = 15;
+        snakes.forEach(snake => {
+            snake.body.forEach(s => {
+                const dist = Math.abs(x -s.x) + Math.abs(y - s.y);
+                if (dist < minDist) {
+                    minDist = dist;
+                }
+            });
+        });
 
+        console.log(minDist);
+        return minDist;
+    };
+
+    let value = 100;
     if (x >= parsedBoard[0].length || x < 0) {
-        value = -2;
+        value = -160;
     } else if (y >= parsedBoard.length || y < 0) {
-        value = -2;
+        value = -160;
     } else {
         if (parsedBoard[y][x] !== 0) {
             value = parsedBoard[y][x];
         } else {
-            value = 100 - distanceToFood();
+            const foodDist = distanceToFood();
+            const snakeDist = distanceToSnake();
+            value = 100 - (foodDist - snakeDist);
         }
     }
 
-    // console.log("checkcell value: ", value);
     return value;
 };
 
-module.exports = ({ body }) => {
-    let direction = "up";
-    const headX = body.you.body[0].x;
-    const headY = body.you.body[0].y;
-    const parsedBoard = parseBoard(body.board);
-    const upValue = checkCell(parsedBoard, body.board, headX, headY - 1);
-    const leftValue = checkCell(parsedBoard, body.board, headX - 1, headY);
-    const downValue = checkCell(parsedBoard, body.board, headX, headY + 1);
-    const rightValue = checkCell(parsedBoard, body.board, headX + 1, headY);
+const findDirection = (parsedBoard, {board}, x, y) => {
+    const upValue = checkCell(parsedBoard, board, x, y - 1) + (checkCell(parsedBoard, board, x, y - 2) / 10);
+    const leftValue = checkCell(parsedBoard, board, x - 1, y) + (checkCell(parsedBoard, board, x - 2, y) / 10);
+    const downValue = checkCell(parsedBoard, board, x, y + 1) + (checkCell(parsedBoard, board, x, y + 2) / 10);
+    const rightValue = checkCell(parsedBoard, board, x + 1, y) + (checkCell(parsedBoard, board, x + 2, y) / 10);
 
     const directions = [upValue, leftValue, downValue, rightValue];
     const sortedDirections = directions.sort((a, b) => b - a);
     const max = sortedDirections[0];
 
+    let direction = "up";
+    
     if (max === upValue) {
         direction = "up";
     } else if (max === leftValue) {
@@ -77,27 +94,20 @@ module.exports = ({ body }) => {
         direction = "right";
     }
 
+    return direction;
+};
 
-    
-    // if (headX === 0 && headY === 0) {
-    //     direction = "down";
-    // } else if (headX === 14 && headY === 0) {
-    //     direction = "left";
-    // } else if (headX === 0 && headY === 14) {
-    //     direction = "right";
-    // } else if (headX === 14 && headY === 14) {
-    //     direction = "up";
-    // } else if (headX  === 0) {
-    //     direction = "down";
-    // } else if (headY === 0) {
-    //     direction = "left";
-    // } else if (headY === 14) {
-    //     direction = "right";
-    // } else if (headX === 14) {
-    //     direction = "up";
-    // }
+module.exports = ({ body }) => {
+    let direction = "up";
+    const headX = body.you.body[0].x;
+    const headY = body.you.body[0].y;
+    const parsedBoard = parseBoard(body.board, body.you);
+
+    // console.log("direction: ", direction);
+
+    console.log(parsedBoard);
 
     return {
-        move: direction
+        move: findDirection(parsedBoard, body, headX, headY)
     }
 };
